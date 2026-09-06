@@ -1,0 +1,511 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  --tile-size: 44px; /* переопределяется из JS под ширину экрана и форму поля — см. render.js */
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+}
+
+/* ==================== Темы оформления ====================
+   Две темы, между которыми можно переключаться прямо в игре
+   (переключатель "Самоцветы"/"Гибрид" в блоке .setup). Обе — с
+   видимыми границами между фишками (сетка-сокеты) и БЕЗ цветного
+   свечения фишек — только компактная контактная тень для объёма
+   (см. .tile-shape ниже, она общая для обеих тем). */
+
+body[data-theme="gem"] {
+  --bg: #14101c;
+  --fg: #e9d9a8;
+  --panel-bg: #211934;
+  --panel-border: #3a2c52;
+  --mode-info-color: #b6a3d6;
+  --board-bg: #17111f;
+  --board-shadow: inset 0 0 0 6px #0d0912, inset 0 0 0 8px #a9812f;
+  --tile-bg: rgba(255, 255, 255, 0.04);
+  --tile-border: rgba(201, 162, 39, 0.35);
+}
+
+body[data-theme="hybrid"] {
+  --bg: #0b0710;
+  --fg: #e7d9ff;
+  --panel-bg: #17101f;
+  --panel-border: #2a1f3d;
+  --mode-info-color: #8a7aa8;
+  --board-bg: #05030a;
+  --board-shadow: inset 0 0 0 1px #2a1f3d;
+  --tile-bg: rgba(255, 255, 255, 0.03);
+  --tile-border: rgba(180, 130, 255, 0.28);
+}
+
+/* Светлая тема — те же две "тайловые" темы (самоцветы/гибрид определяют
+   только акцентный цвет рамки и фишек), но светлый фон вместо тёмного.
+   Переключается независимо, через data-color-scheme="light" на body. */
+body[data-color-scheme="light"][data-theme="gem"] {
+  --bg: #f6efe0;
+  --fg: #3a2c1a;
+  --panel-bg: #fffaf0;
+  --panel-border: #d8c9a0;
+  --mode-info-color: #8a6d2f;
+  --board-bg: #ece0c2;
+  --board-shadow: inset 0 0 0 6px #d9cba0, inset 0 0 0 8px #a9812f;
+  --tile-bg: rgba(0, 0, 0, 0.04);
+  --tile-border: rgba(169, 129, 47, 0.4);
+}
+
+body[data-color-scheme="light"][data-theme="hybrid"] {
+  --bg: #f3eefc;
+  --fg: #2e2140;
+  --panel-bg: #ffffff;
+  --panel-border: #d8cdf0;
+  --mode-info-color: #6b5a94;
+  --board-bg: #e7dcf9;
+  --board-shadow: inset 0 0 0 1px #d8cdf0;
+  --tile-bg: rgba(0, 0, 0, 0.03);
+  --tile-border: rgba(140, 100, 220, 0.3);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* На нативные элементы (select, number input) сама тема (gem/hybrid) не
+   влияет — но светлая/тёмная должна: иначе на светлом фоне остался бы
+   тёмный системный выпадающий список. */
+body[data-color-scheme="light"] {
+  color-scheme: light;
+}
+
+body[data-color-scheme="dark"] {
+  color-scheme: dark;
+}
+
+.setup {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+}
+
+.mode-info {
+  color: var(--mode-info-color);
+}
+
+body[data-theme="gem"] .mode-info {
+  font-family: "Fraunces", serif;
+}
+
+body[data-theme="hybrid"] .mode-info {
+  font-family: "JetBrains Mono", monospace;
+}
+
+body[data-theme="gem"] .hud,
+body[data-theme="hybrid"] .hud {
+  font-family: "Fraunces", serif;
+  font-weight: 700;
+}
+
+#board {
+  background: var(--board-bg);
+  box-shadow: var(--board-shadow);
+}
+
+/* сетка между фишками: у обеих тем фишка сидит в своей "ячейке" с
+   видимой границей — в отличие от исходного варианта, где были только
+   едва заметный фон и зазор без чёткой рамки */
+.tile {
+  background: var(--tile-bg);
+  border: 1px solid var(--tile-border);
+}
+
+.special-badge {
+  color: #f3d883;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.hud {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 1.1rem;
+}
+
+.hud > .hud-row {
+  display: flex;
+  gap: 24px;
+}
+
+.mode-info {
+  font-size: 0.85rem;
+  color: #9aa0a6;
+}
+
+.setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: #2a2a2a;
+  border-radius: 8px;
+  padding: 12px 20px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.setup-row {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  font-size: 0.95rem;
+}
+
+.setup-row[hidden] {
+  display: none;
+}
+
+.setup-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.setup-row select,
+.setup-row input[type="number"] {
+  padding: 2px 4px;
+}
+
+.setup-row input[type="number"] {
+  width: 4.5em;
+}
+
+#board {
+  /* Реальные grid-template-columns/rows и --tile-size выставляет render.js
+     под текущую форму поля (она может быть не квадратом, меняться от игры
+     к игре, а сам размер клетки подстраивается под ширину экрана) —
+     значения ниже лишь запасной вариант на случай, если JS почему-то не
+     успел их применить до первой отрисовки. */
+  display: grid;
+  grid-template-columns: repeat(8, var(--tile-size));
+  grid-template-rows: repeat(8, var(--tile-size));
+  gap: 4px;
+  padding: 8px;
+  background: #222;
+  border-radius: 8px;
+  max-width: calc(100vw - 32px);
+}
+
+/* Дыра формы поля (клетки тут вообще нет) — занимает место в сетке, чтобы
+   форма (ромб/крест/кольцо и т.п.) не "сплющивалась", но невидима и не
+   реагирует на клики/драг. */
+.tile.hole {
+  visibility: hidden;
+  cursor: default;
+  pointer-events: none;
+}
+
+.tile {
+  width: var(--tile-size);
+  height: var(--tile-size);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: filter 0.12s ease;
+  touch-action: none; /* чтобы свайп по фишке не скроллил страницу на тач-устройствах */
+}
+
+.tile-shape {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+.special-badge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+.tile:hover {
+  filter: brightness(1.1);
+}
+
+.tile.selected {
+  outline: 3px solid white;
+  filter: brightness(1.15);
+}
+
+.tile.dragging {
+  cursor: grabbing;
+  filter: brightness(1.25);
+  z-index: 1;
+}
+
+.tile.drag-target {
+  outline: 3px dashed rgba(255, 255, 255, 0.85);
+  filter: brightness(1.15);
+}
+
+.tile.special {
+  box-shadow: inset 0 0 0 2px white, 0 0 8px rgba(255, 255, 255, 0.6);
+}
+
+.tile.invalid {
+  animation: shake 0.25s ease;
+}
+
+.tile.hint {
+  animation: hint-pulse 1s ease-in-out infinite;
+}
+
+@keyframes hint-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px rgba(255, 215, 0, 0.9), 0 0 6px rgba(255, 215, 0, 0.5); }
+  50% { box-shadow: inset 0 0 0 2px rgba(255, 215, 0, 0.3), 0 0 2px rgba(255, 215, 0, 0.1); }
+}
+
+#moves-block.low-moves {
+  color: #e74c3c;
+  font-weight: 700;
+  animation: moves-blink 1s ease-in-out infinite;
+}
+
+@keyframes moves-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.tile.clearing {
+  animation: clear-pop 0.18s ease forwards;
+}
+
+.tile.spawned {
+  animation: spawn-pop 0.32s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@keyframes clear-pop {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.3); opacity: 0; }
+}
+
+@keyframes spawn-pop {
+  0% { transform: scale(0.3); }
+  70% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+#summary {
+  min-height: 1.2em;
+  font-size: 0.95rem;
+  max-width: 360px;
+  text-align: center;
+}
+
+button#new-game {
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+/* ---- Навигация между страницами ---- */
+
+.top-nav {
+  width: 100%;
+  max-width: 680px;
+  text-align: left;
+}
+
+.top-nav a {
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.95rem;
+  opacity: 0.8;
+}
+
+.top-nav a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* ---- Страница статистики ---- */
+
+.summary-cards {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.summary-card {
+  background: #2a2a2a;
+  border-radius: 8px;
+  padding: 16px 24px;
+  text-align: center;
+  min-width: 120px;
+}
+
+.summary-card-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.summary-card-label {
+  font-size: 0.85rem;
+  opacity: 0.75;
+  margin-top: 4px;
+}
+
+.chart-section,
+.history-section {
+  width: 100%;
+  max-width: 680px;
+}
+
+.chart-section h2,
+.history-section h2 {
+  font-size: 1rem;
+  opacity: 0.85;
+  margin-bottom: 8px;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 140px;
+  padding: 8px;
+  background: #1a1a1a;
+  border-radius: 8px;
+}
+
+.chart.empty {
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  font-size: 0.9rem;
+}
+
+.chart-bar-wrap {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.chart-bar {
+  width: 100%;
+  background: #3498db;
+  border-radius: 3px 3px 0 0;
+  min-height: 4px;
+  transition: filter 0.12s ease;
+}
+
+.chart-bar-wrap:hover .chart-bar {
+  filter: brightness(1.3);
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.history-table th,
+.history-table td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid #333;
+}
+
+.history-table th {
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+.empty-state {
+  opacity: 0.65;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.danger-button {
+  padding: 8px 16px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid #a33;
+  color: #e77;
+  border-radius: 6px;
+}
+
+.danger-button:hover {
+  background: #a33;
+  color: white;
+}
+
+.mode-breakdown-section,
+.colors-breakdown-section {
+  width: 100%;
+  max-width: 680px;
+}
+
+.mode-breakdown-section h2,
+.colors-breakdown-section h2 {
+  font-size: 1rem;
+  opacity: 0.85;
+  margin-bottom: 8px;
+}
+
+.stats-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.secondary-button {
+  padding: 8px 16px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid #555;
+  color: inherit;
+  border-radius: 6px;
+}
+
+.secondary-button:hover {
+  background: #333;
+}
+
+.import-status {
+  font-size: 0.85rem;
+  opacity: 0.85;
+  text-align: center;
+}
+
+.import-status.error {
+  color: #e77;
+  opacity: 1;
+}

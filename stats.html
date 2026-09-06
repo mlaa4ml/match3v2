@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1b1b1b" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <title>Матч-3 — Статистика</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Статистика</h1>
+
+  <nav class="top-nav">
+    <a href="index.html">← Играть</a>
+  </nav>
+
+  <section id="summary-cards" class="summary-cards"></section>
+
+  <section class="chart-section">
+    <h2>Последние партии</h2>
+    <div id="chart" class="chart"></div>
+  </section>
+
+  <section class="mode-breakdown-section">
+    <h2>По режимам игры</h2>
+    <div id="mode-breakdown" class="summary-cards"></div>
+  </section>
+
+  <section class="colors-breakdown-section">
+    <h2>Лучший результат по количеству цветов</h2>
+    <div id="colors-breakdown" class="summary-cards"></div>
+  </section>
+
+  <section class="history-section">
+    <h2>История</h2>
+    <table id="history-table" class="history-table">
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Режим</th>
+          <th>Счёт</th>
+          <th>Ходов</th>
+          <th>Комбо</th>
+          <th>Спецфишки</th>
+        </tr>
+      </thead>
+      <tbody id="history-body"></tbody>
+    </table>
+    <p id="empty-state" class="empty-state" hidden>Пока нет сыгранных партий.</p>
+  </section>
+
+  <div class="stats-actions">
+    <button id="export-history" class="secondary-button">Экспорт в JSON</button>
+    <button id="import-history" class="secondary-button">Импорт из JSON</button>
+    <input type="file" id="import-file-input" accept="application/json,.json" hidden />
+    <button id="clear-history" class="danger-button">Очистить историю</button>
+  </div>
+  <p id="import-status" class="import-status" hidden></p>
+
+  <script type="module" src="src/statsPage.js"></script>
+</body>
+</html>

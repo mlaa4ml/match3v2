@@ -1,0 +1,79 @@
+# Автодеплой игры на GitHub Pages.
+#
+# Что делает: при каждом пуше в main (и вручную, кнопкой "Run workflow")
+# прогоняет тесты (node --test), а если они прошли — публикует весь проект
+# как статический сайт на GitHub Pages. Билд-шага нет вообще: игра и так
+# чистые HTML/CSS/ES-модули без сборки, поэтому "собрать" тут нечего —
+# просто взять файлы как есть и отдать их наружу.
+#
+# ВАЖНО — одно ручное действие, которое GitHub не даёт сделать через workflow:
+# перед первым запуском зайдите в репозитории в Settings → Pages → Build and
+# deployment → Source, и выберите "GitHub Actions" (по умолчанию там стоит
+# "Deploy from a branch" — с ним этот workflow работать не будет). Сделать
+# это нужно один раз, дальше всё уже само.
+#
+# Предполагается, что файлы игры (index.html, style.css, src/ и т.д.) лежат
+# в КОРНЕ репозитория. Если вместо этого весь проект — подпапка (например,
+# репозиторий целиком это match3/, а не его содержимое), поправьте "path:" в
+# шаге "Upload artifact" ниже на нужную подпапку.
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch: # позволяет запустить вручную кнопкой в вкладке Actions
+
+# Нужно для деплоя на Pages именно через Actions (а не через отдельную ветку).
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Не даём двум деплоям идти одновременно — новый пуш всегда ждёт, пока
+# завершится предыдущий (а не отменяет его на середине).
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Установить Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Прогнать тесты (node --test)
+        run: npm test
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Настроить Pages
+        uses: actions/configure-pages@v5
+
+      - name: Упаковать сайт как artifact для Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Корень репозитория целиком — билда нет, файлы отдаются как есть.
+          path: "."
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Опубликовать на GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

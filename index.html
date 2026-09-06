@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1b1b1b" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <title>Матч-3</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=JetBrains+Mono:wght@500;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Матч-3</h1>
+
+  <div class="setup">
+    <div class="setup-row">
+      <label>
+        <input type="radio" name="mode" value="classic" checked />
+        Обычная игра (6 цветов, 25 ходов)
+      </label>
+      <label>
+        <input type="radio" name="mode" value="custom" />
+        Своя игра
+      </label>
+    </div>
+    <div class="setup-row" id="custom-options" hidden>
+      <label>
+        Цветов:
+        <select id="custom-colors">
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6" selected>6</option>
+        </select>
+      </label>
+      <label>
+        Ходов:
+        <input type="number" id="custom-moves" min="3" step="1" value="15" />
+      </label>
+      <label>
+        Форма поля:
+        <select id="custom-shape"></select>
+      </label>
+    </div>
+    <div class="setup-row">
+      <label>
+        <input type="radio" name="theme" value="gem" checked />
+        Самоцветы
+      </label>
+      <label>
+        <input type="radio" name="theme" value="hybrid" />
+        Гибрид
+      </label>
+    </div>
+    <div class="setup-row">
+      <label>
+        <input type="radio" name="color-scheme" value="dark" checked />
+        Тёмная
+      </label>
+      <label>
+        <input type="radio" name="color-scheme" value="light" />
+        Светлая
+      </label>
+    </div>
+    <button id="new-game">Новая игра</button>
+  </div>
+
+  <div class="hud">
+    <div id="mode-info" class="mode-info"></div>
+    <div class="hud-row">
+      <div>Счёт: <span id="score">0</span></div>
+      <div id="moves-block">Ходов осталось: <span id="moves">0</span></div>
+    </div>
+  </div>
+
+  <div id="board"></div>
+
+  <p id="summary"></p>
+
+  <nav class="top-nav" style="text-align: center; margin-top: 8px;">
+    <a href="stats.html">Статистика →</a>
+  </nav>
+
+  <script type="module" src="src/main.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
+    }
+  </script>
+</body>
+</html>
