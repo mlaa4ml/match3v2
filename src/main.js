@@ -199,7 +199,21 @@ function applySavedSettings() {
   if (saved.shapeId && SHAPES[saved.shapeId]) {
     customShapeEl.value = saved.shapeId;
   }
+  if (Number.isFinite(saved.shapeSize)) customSizeEl.value = String(clampShapeSize(saved.shapeSize, 9));
+  if (Number.isFinite(saved.shapeWidth)) customWidthEl.value = String(clampShapeSize(saved.shapeWidth, 6));
+  if (Number.isFinite(saved.shapeHeight)) customHeightEl.value = String(clampShapeSize(saved.shapeHeight, 9));
+  if (saved.specialColorRule) {
+    if ([...customSpecialRuleEl.options].some((o) => o.value === saved.specialColorRule)) {
+      customSpecialRuleEl.value = saved.specialColorRule;
+    }
+  }
+  if (saved.superComboRule) {
+    if ([...customComboRuleEl.options].some((o) => o.value === saved.superComboRule)) {
+      customComboRuleEl.value = saved.superComboRule;
+    }
+  }
 
+  updateShapeSizeVisibility();
   updateCustomVisibility();
 }
 
