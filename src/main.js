@@ -275,7 +275,7 @@ function startNewGame() {
 function updateModeInfo(mode) {
   modeInfoEl.textContent =
     mode === "custom"
-      ? `Своя игра: ${session.shape.name}, ${session.colorsCount} цвета(ов), ${session.movesLimit} ходов`
+      ? `Своя игра: ${session.shapeLabel}, ${session.colorsCount} цвета(ов), ${session.movesLimit} ходов`
       : "Обычная игра";
 }
 
