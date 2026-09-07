@@ -393,11 +393,27 @@ export function getComboEffectCells(grid, a, b, superComboRule = DEFAULT_SUPER_C
  *   игрок свапнул colorbomb именно с этой клеткой, при её активации нужно
  *   целиться в этот цвет, а не в "самый частый на поле" (запасной вариант
  *   для цепной активации без прямого свапа с цветной клеткой).
+ * @param {string} [options.specialColorRule] — одно из SPECIAL_COLOR_RULES,
+ *   см. описание правил вверху файла (issue #1, п.2).
  */
-export function resolveWave(grid, { forcedPositions = [], originPositions = [], colorBombTarget = null } = {}) {
+export function resolveWave(
+  grid,
+  {
+    forcedPositions = [],
+    originPositions = [],
+    colorBombTarget = null,
+    specialColorRule = DEFAULT_SPECIAL_COLOR_RULE,
+  } = {}
+) {
   const clearSet = new Map(); // "r,c" -> {row,col}
   const spawns = [];
   const spawnKeys = new Set();
+  const rule = SPECIAL_COLOR_RULES.includes(specialColorRule)
+    ? specialColorRule
+    : DEFAULT_SPECIAL_COLOR_RULE;
+  // При правиле 'colorless' рождённая спецфишка теряет цвет — так она больше
+  // никогда не попадёт в цветовое совпадение и будет ждать активации.
+  const spawnColor = (row, col) => (rule === "colorless" ? null : grid[row][col].color);
 
   const addClear = (row, col) => clearSet.set(`${row},${col}`, { row, col });
 
