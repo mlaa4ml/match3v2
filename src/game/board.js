@@ -461,21 +461,34 @@ export function resolveWave(grid, { forcedPositions = [], originPositions = [], 
     }
   }
 
-  for (const pos of forcedPositions) addClear(pos.row, pos.col);
+  // Клетки, чей бонус имеет право сработать. При правиле 'activate' (как
+  // было раньше) — вообще любая попавшая под очистку клетка. При правиле
+  // 'consume' бонус, который просто попал в цветовое совпадение, молча
+  // исчезает, и активироваться могут только те, кого игрок свапнул сам
+  // (forcedPositions) или кого задел чужой взрыв (добавляются ниже).
+  const allowActivation = new Set();
+  for (const pos of forcedPositions) {
+    addClear(pos.row, pos.col);
+    allowActivation.add(`${pos.row},${pos.col}`);
+  }
 
   // цепная активация: любая спецфишка, попавшая под очистку, добавляет свою зону
-  const triggered = new Set();
+  const seen = new Set();
+  const activated = new Set();
   let activatedSpecialsCount = 0;
   let frontier = [...clearSet.keys()];
   while (frontier.length > 0) {
     const key = frontier.pop();
-    if (triggered.has(key)) continue;
-    triggered.add(key);
+    if (seen.has(key) && !(allowActivation.has(key) && !activated.has(key))) continue;
+    seen.add(key);
     if (spawnKeys.has(key)) continue; // спавнящаяся клетка не может сама себя чистить
+    if (activated.has(key)) continue;
+    if (rule === "consume" && !allowActivation.has(key)) continue;
 
     const [r, c] = key.split(",").map(Number);
     const cell = grid[r][c];
     if (cell && cell.special) {
+      activated.add(key);
       activatedSpecialsCount += 1;
       const context =
         colorBombTarget && colorBombTarget.row === r && colorBombTarget.col === c
@@ -483,10 +496,13 @@ export function resolveWave(grid, { forcedPositions = [], originPositions = [], 
           : undefined;
       for (const affected of getSpecialEffectCells(grid, r, c, context)) {
         const aKey = `${affected.row},${affected.col}`;
-        if (!clearSet.has(aKey)) {
-          addClear(affected.row, affected.col);
-          frontier.push(aKey);
-        }
+        const isNew = !clearSet.has(aKey);
+        if (isNew) addClear(affected.row, affected.col);
+        // клетку задел взрыв, а не просто цвет — её бонус вправе сработать
+        // даже при правиле 'consume'
+        const newlyAllowed = !allowActivation.has(aKey);
+        allowActivation.add(aKey);
+        if (isNew || newlyAllowed) frontier.push(aKey);
       }
     }
   }
