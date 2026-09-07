@@ -708,23 +708,61 @@ function hexShape(size) {
   return { width: size, height: size, mask };
 }
 
-// Реестр форм: id -> { name, build() }. main.js использует его, чтобы
-// построить выпадающий список — новая форма добавляется только тут,
-// больше нигде трогать не нужно.
+// Реестр форм: id -> { name, build(size|{width,height}), sizing }.
+// sizing описывает, что игрок может настраивать для этой формы:
+//  'wh'   — прямоугольник: отдельно ширина и высота;
+//  'size' — форма вписана в квадрат size×size, настраивается одна сторона.
+// main.js использует это, чтобы показать нужные поля ввода — новая форма
+// добавляется только тут, больше нигде трогать не нужно.
 export const SHAPES = {
-  square: { name: "Квадрат 8×8", build: () => rectShape(BOARD_SIZE, BOARD_SIZE) },
-  rect_narrow: { name: "Прямоугольник 6×9", build: () => rectShape(6, 9) },
-  rect_wide: { name: "Прямоугольник 9×6", build: () => rectShape(9, 6) },
-  diamond: { name: "Ромб", build: () => diamondShape(9) },
-  cross: { name: "Крест", build: () => crossShape(9) },
-  ring: { name: "Кольцо", build: () => ringShape(9) },
-  triangle: { name: "Треугольник", build: () => triangleShape(9) },
-  hex: { name: "Восьмиугольник", build: () => hexShape(9) },
+  square: {
+    name: "Квадрат",
+    sizing: "size",
+    defaultSize: BOARD_SIZE,
+    build: (size) => rectShape(size, size),
+  },
+  rect: {
+    name: "Прямоугольник",
+    sizing: "wh",
+    defaultWidth: 6,
+    defaultHeight: 9,
+    build: ({ width, height }) => rectShape(width, height),
+  },
+  diamond: { name: "Ромб", sizing: "size", defaultSize: 9, build: (size) => diamondShape(size) },
+  cross: { name: "Крест", sizing: "size", defaultSize: 9, build: (size) => crossShape(size) },
+  ring: { name: "Кольцо", sizing: "size", defaultSize: 9, build: (size) => ringShape(size) },
+  triangle: { name: "Треугольник", sizing: "size", defaultSize: 9, build: (size) => triangleShape(size) },
+  hex: { name: "Восьмиугольник", sizing: "size", defaultSize: 9, build: (size) => hexShape(size) },
 };
 
-/** Собирает форму по id из SHAPES; неизвестный/отсутствующий id → "square". */
-export function buildShape(shapeId) {
+export function clampShapeSize(value, fallback) {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(MAX_SHAPE_SIZE, Math.max(MIN_SHAPE_SIZE, n));
+}
+
+/**
+ * Собирает форму по id из SHAPES; неизвестный/отсутствующий id → "square".
+ * @param {Object} [options] — размеры, выбранные игроком:
+ *   { size } для форм с sizing==='size' и { width, height } для 'wh'.
+ *   Всё, что не передано или выходит за MIN/MAX_SHAPE_SIZE, приводится
+ *   к допустимым значениям — форма всегда получается играбельной.
+ */
+export function buildShape(shapeId, options = {}) {
   const entry = SHAPES[shapeId] ? shapeId : "square";
-  const { name, build } = SHAPES[entry];
-  return { id: entry, name, ...build() };
+  const def = SHAPES[entry];
+
+  if (def.sizing === "wh") {
+    const width = clampShapeSize(options.width, def.defaultWidth);
+    const height = clampShapeSize(options.height, def.defaultHeight);
+    return { id: entry, name: def.name, sizing: def.sizing, ...def.build({ width, height }) };
+  }
+
+  const size = clampShapeSize(options.size, def.defaultSize);
+  return { id: entry, name: def.name, sizing: def.sizing, ...def.build(size) };
+}
+
+/** Человекочитаемое описание формы вместе с её размером — для HUD. */
+export function describeShape(shape) {
+  return `${shape.name} ${shape.width}×${shape.height}`;
 }
