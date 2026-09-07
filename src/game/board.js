@@ -676,7 +676,8 @@ function crossShape(size) {
 }
 
 function ringShape(size) {
-  const t = 2; // толщина рамки
+  // толщина рамки: на маленьких полях 2 клетки съели бы всё поле целиком
+  const t = size >= 7 ? 2 : 1;
   const mask = Array.from({ length: size }, (_, r) =>
     Array.from({ length: size }, (_, c) => !(r >= t && r < size - t && c >= t && c < size - t))
   );
