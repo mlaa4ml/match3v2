@@ -239,10 +239,23 @@ function mostFrequentColor(grid) {
  * скромных самостоятельных эффектов получается один заметно больший.
  * Возвращает [] , если обе клетки — не спецфишки (значит, это не комбо-свап).
  */
-export function getComboEffectCells(grid, a, b) {
+export function getComboEffectCells(grid, a, b, superComboRule = DEFAULT_SUPER_COMBO_RULE) {
   const typeA = grid[a.row][a.col].special;
   const typeB = grid[b.row][b.col].special;
   if (!typeA || !typeB) return [];
+
+  const rule = SUPER_COMBO_RULES.includes(superComboRule) ? superComboRule : DEFAULT_SUPER_COMBO_RULE;
+  // 'off' — никакого особого комбо: каждая фишка просто сработает сама по себе
+  // (обычная цепная активация в resolveWave).
+  if (rule === "off") return [];
+  if (rule === "wipe-all") {
+    // супер-бонус: любое соединение двух бонусных клеток стирает поле целиком
+    const all = [];
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < grid[0].length; c++) all.push({ row: r, col: c });
+    }
+    return all;
+  }
 
   const height = grid.length;
   const width = grid[0].length;
