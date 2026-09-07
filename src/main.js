@@ -165,6 +165,19 @@ for (const radio of colorSchemeRadios) {
 }
 applySavedColorScheme();
 
+/** Показывает поля размера, подходящие выбранной форме: прямоугольнику —
+ * ширина+высота, всем остальным формам — одна сторона квадрата. */
+function updateShapeSizeVisibility() {
+  const def = SHAPES[customShapeEl.value] || SHAPES.square;
+  const isRect = def.sizing === "wh";
+  customSizeLabelEl.hidden = isRect;
+  customWidthLabelEl.hidden = !isRect;
+  customHeightLabelEl.hidden = !isRect;
+}
+
+customShapeEl.addEventListener("change", updateShapeSizeVisibility);
+updateShapeSizeVisibility();
+
 function applySavedSettings() {
   const saved = loadSavedSettings();
   if (!saved) return;
