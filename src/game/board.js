@@ -471,7 +471,7 @@ export function resolveWave(
         row: spawnCell.row,
         col: spawnCell.col,
         special,
-        color: grid[spawnCell.row][spawnCell.col].color,
+        color: spawnColor(spawnCell.row, spawnCell.col),
       });
       spawnKeys.add(`${spawnCell.row},${spawnCell.col}`);
     }
