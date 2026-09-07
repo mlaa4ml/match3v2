@@ -15,6 +15,14 @@ const customOptionsEl = document.getElementById("custom-options");
 const customColorsEl = document.getElementById("custom-colors");
 const customMovesEl = document.getElementById("custom-moves");
 const customShapeEl = document.getElementById("custom-shape");
+const customSizeEl = document.getElementById("custom-size");
+const customSizeLabelEl = document.getElementById("custom-size-label");
+const customWidthEl = document.getElementById("custom-width");
+const customWidthLabelEl = document.getElementById("custom-width-label");
+const customHeightEl = document.getElementById("custom-height");
+const customHeightLabelEl = document.getElementById("custom-height-label");
+const customSpecialRuleEl = document.getElementById("custom-special-rule");
+const customComboRuleEl = document.getElementById("custom-combo-rule");
 const themeRadios = document.querySelectorAll('input[name="theme"]');
 const colorSchemeRadios = document.querySelectorAll('input[name="color-scheme"]');
 
