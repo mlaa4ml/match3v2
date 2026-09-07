@@ -283,22 +283,96 @@ export function getComboEffectCells(grid, a, b, superComboRule = DEFAULT_SUPER_C
     }
   };
 
+  const addRow = (row) => {
+    if (row < 0 || row >= height) return;
+    for (let c = 0; c < width; c++) cells.push({ row, col: c });
+  };
+
+  const addCol = (col) => {
+    if (col < 0 || col >= width) return;
+    for (let r = 0; r < height; r++) cells.push({ row: r, col });
+  };
+
+  const addAll = () => {
+    for (let r = 0; r < height; r++) {
+      for (let c = 0; c < width; c++) cells.push({ row: r, col: c });
+    }
+  };
+
+  /** Клетки указанного цвета (цель радужной фишки при комбо с ней). */
+  const cellsOfColor = (color) => {
+    const found = [];
+    for (let r = 0; r < height; r++) {
+      for (let c = 0; c < width; c++) {
+        if (grid[r][c] && grid[r][c].color === color) found.push({ row: r, col: c });
+      }
+    }
+    return found;
+  };
+
+  const otherOf = (type) => (typeA === type ? b : a);
   const types = [typeA, typeB].sort().join("+");
 
+  // Полная таблица комбо (issue #1, п.3). Раньше большинство пар давало []
+  // и срабатывала лишь одна фишка из двух — теперь у каждой пары свой
+  // усиленный эффект, а не "одно действие одной клетки".
   if (types === "bomb+bomb") {
     // вместо двух скромных 3x3 — один большой взрыв 5x5 через обе точки
     addBlock5(a);
     addBlock5(b);
   } else if (types === "bomb+lineH") {
     // "тройная строка": не одна чищенная строка, а сразу три подряд
-    addTripleRow((typeA === "lineH" ? a : b).row);
+    addTripleRow(otherOf("bomb").row);
   } else if (types === "bomb+lineV") {
     // аналогично — "тройной столбец"
-    addTripleCol((typeA === "lineV" ? a : b).col);
+    addTripleCol(otherOf("bomb").col);
+  } else if (types === "bomb+cross") {
+    // крест + бомба — тройная строка И тройной столбец через уголковую фишку
+    const cross = otherOf("bomb");
+    addTripleRow(cross.row);
+    addTripleCol(cross.col);
+  } else if (types === "lineH+lineH" || types === "lineH+lineV" || types === "lineV+lineV") {
+    // две линии — полноценный крест через ОБЕ клетки (а не одна линия)
+    addRow(a.row);
+    addCol(a.col);
+    addRow(b.row);
+    addCol(b.col);
+  } else if (types === "cross+lineH" || types === "cross+lineV") {
+    // уголок + линия — крест через обе клетки плюс "утолщение" у уголка
+    const cross = otherOf(typeA === "cross" ? "cross" : "cross") === a && typeA === "cross" ? a : typeA === "cross" ? a : b;
+    addRow(a.row);
+    addCol(a.col);
+    addRow(b.row);
+    addCol(b.col);
+    addTripleRow(cross.row);
+  } else if (types === "cross+cross") {
+    // два уголка — по три строки и три столбца через каждую клетку
+    addTripleRow(a.row);
+    addTripleCol(a.col);
+    addTripleRow(b.row);
+    addTripleCol(b.col);
   } else if (types === "colorbomb+colorbomb") {
     // двойная радуга — самый эффектный комбо, чистим поле целиком
-    for (let r = 0; r < height; r++) {
-      for (let c = 0; c < width; c++) cells.push({ row: r, col: c });
+    addAll();
+  } else if (typeA === "colorbomb" || typeB === "colorbomb") {
+    // радуга + любая другая спецфишка: все клетки цвета партнёра как бы
+    // становятся такой же спецфишкой и срабатывают разом.
+    const partner = typeA === "colorbomb" ? b : a;
+    const partnerType = typeA === "colorbomb" ? typeB : typeA;
+    const partnerCell = grid[partner.row][partner.col];
+    const targetColor = partnerCell.color === null || partnerCell.color === undefined
+      ? mostFrequentColor(grid)
+      : partnerCell.color;
+    const targets = cellsOfColor(targetColor);
+    cells.push(...targets, partner);
+    for (const t of targets) {
+      if (partnerType === "lineH") addRow(t.row);
+      else if (partnerType === "lineV") addCol(t.col);
+      else if (partnerType === "bomb") addBlock5(t);
+      else if (partnerType === "cross") {
+        addRow(t.row);
+        addCol(t.col);
+      }
     }
   }
 
