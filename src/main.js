@@ -1,7 +1,7 @@
 import { GameSession } from "./game/session.js";
 import { BoardRenderer, setTileTheme } from "./render.js";
 import { statsProvider } from "./stats/index.js";
-import { findAvailableMove, SHAPES } from "./game/board.js";
+import { findAvailableMove, SHAPES, clampShapeSize } from "./game/board.js";
 
 const boardEl = document.getElementById("board");
 const scoreEl = document.getElementById("score");
