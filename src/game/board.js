@@ -220,7 +220,10 @@ function mostFrequentColor(grid) {
   const counts = new Array(TILE_TYPES).fill(0);
   for (const row of grid) {
     for (const cell of row) {
-      if (cell) counts[cell.color] = (counts[cell.color] || 0) + 1;
+      // бесцветные бонусные клетки (правило 'colorless') в подсчёте не участвуют
+      if (cell && cell.color !== null && cell.color !== undefined) {
+        counts[cell.color] = (counts[cell.color] || 0) + 1;
+      }
     }
   }
   let best = 0;
