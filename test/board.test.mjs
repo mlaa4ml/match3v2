@@ -275,11 +275,53 @@ describe("getComboEffectCells", () => {
     assert.deepEqual([...cols].sort(), [3, 4, 5]);
   });
 
-  test("lineH+lineV и другие пары без bomb — пустой список (default-активация и так справляется)", () => {
+  test("lineH+lineV — крест через ОБЕ клетки (раньше срабатывала только одна фишка)", () => {
     const grid = safeGrid();
     grid[3][3] = cell(1, "lineH");
     grid[3][4] = cell(2, "lineV");
-    assert.deepEqual(getComboEffectCells(grid, { row: 3, col: 3 }, { row: 3, col: 4 }), []);
+    const cells = getComboEffectCells(grid, { row: 3, col: 3 }, { row: 3, col: 4 });
+    const unique = new Set(cells.map((c) => `${c.row},${c.col}`));
+    assert.ok(unique.has("0,3") && unique.has("0,4"), "оба столбца должны чиститься");
+    assert.ok(unique.has("3,0") && unique.has(`3,${BOARD_SIZE - 1}`), "строка должна чиститься целиком");
+  });
+
+  test("cross+cross — по три строки и три столбца через каждую клетку", () => {
+    const grid = safeGrid();
+    grid[3][3] = cell(1, "cross");
+    grid[3][4] = cell(2, "cross");
+    const cells = getComboEffectCells(grid, { row: 3, col: 3 }, { row: 3, col: 4 });
+    const rows = new Set(cells.map((c) => c.row));
+    const cols = new Set(cells.map((c) => c.col));
+    assert.deepEqual([...rows].sort((x, y) => x - y), [2, 3, 4]);
+    assert.deepEqual([...cols].sort((x, y) => x - y), [2, 3, 4, 5]);
+  });
+
+  test("colorbomb + обычная спецфишка — все клетки цвета партнёра срабатывают как эта спецфишка", () => {
+    const grid = safeGrid();
+    grid[3][3] = cell(1, "colorbomb");
+    grid[3][4] = cell(2, "lineH");
+    grid[5][0] = cell(2, null); // ещё одна клетка цвета партнёра — её строка тоже уйдёт
+    const cells = getComboEffectCells(grid, { row: 3, col: 3 }, { row: 3, col: 4 });
+    const unique = new Set(cells.map((c) => `${c.row},${c.col}`));
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      assert.ok(unique.has(`5,${c}`), `строка клетки-цвета должна чиститься целиком (5,${c})`);
+    }
+  });
+
+  test("правило 'off' — комбо-пар нет вообще, каждая фишка срабатывает сама по себе", () => {
+    const grid = safeGrid();
+    grid[3][3] = cell(1, "bomb");
+    grid[3][4] = cell(2, "bomb");
+    assert.deepEqual(getComboEffectCells(grid, { row: 3, col: 3 }, { row: 3, col: 4 }, "off"), []);
+  });
+
+  test("правило 'wipe-all' — любое соединение двух бонусов стирает поле целиком", () => {
+    const grid = safeGrid();
+    grid[3][3] = cell(1, "lineH");
+    grid[3][4] = cell(2, "lineV");
+    const cells = getComboEffectCells(grid, { row: 3, col: 3 }, { row: 3, col: 4 }, "wipe-all");
+    const unique = new Set(cells.map((c) => `${c.row},${c.col}`));
+    assert.equal(unique.size, BOARD_SIZE * BOARD_SIZE);
   });
 
   test("colorbomb+colorbomb — двойная радуга чистит поле целиком", () => {
