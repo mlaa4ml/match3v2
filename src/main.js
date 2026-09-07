@@ -63,6 +63,11 @@ function saveSettings(settings) {
       colorsCount: settings.colorsCount ?? existing.colorsCount,
       movesLimit: settings.movesLimit ?? existing.movesLimit,
       shapeId: settings.shapeId ?? existing.shapeId,
+      shapeSize: settings.shapeSize ?? existing.shapeSize,
+      shapeWidth: settings.shapeWidth ?? existing.shapeWidth,
+      shapeHeight: settings.shapeHeight ?? existing.shapeHeight,
+      specialColorRule: settings.specialColorRule ?? existing.specialColorRule,
+      superComboRule: settings.superComboRule ?? existing.superComboRule,
     };
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(merged));
   } catch {
