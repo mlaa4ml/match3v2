@@ -229,6 +229,11 @@ function currentSettings() {
       colorsCount: Number.isFinite(colorsCount) ? colorsCount : 3,
       movesLimit: Number.isFinite(movesLimit) ? movesLimit : 3,
       shapeId: customShapeEl.value || "square",
+      shapeSize: clampShapeSize(customSizeEl.value, 9),
+      shapeWidth: clampShapeSize(customWidthEl.value, 6),
+      shapeHeight: clampShapeSize(customHeightEl.value, 9),
+      specialColorRule: customSpecialRuleEl.value,
+      superComboRule: customComboRuleEl.value,
     };
   }
 
