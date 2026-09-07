@@ -339,7 +339,7 @@ export function getComboEffectCells(grid, a, b, superComboRule = DEFAULT_SUPER_C
     addCol(b.col);
   } else if (types === "cross+lineH" || types === "cross+lineV") {
     // уголок + линия — крест через обе клетки плюс "утолщение" у уголка
-    const cross = otherOf(typeA === "cross" ? "cross" : "cross") === a && typeA === "cross" ? a : typeA === "cross" ? a : b;
+    const cross = typeA === "cross" ? a : b;
     addRow(a.row);
     addCol(a.col);
     addRow(b.row);
