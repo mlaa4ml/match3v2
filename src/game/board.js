@@ -363,6 +363,11 @@ export function getComboEffectCells(grid, a, b, superComboRule = DEFAULT_SUPER_C
         cells.push({ row: r, col: c });
       }
     }
+//     // два уголка — по три строки и три столбца через каждую клетку
+//     addTripleRow(a.row);
+//     addTripleCol(a.col);
+//     addTripleRow(b.row);
+//     addTripleCol(b.col);
   } else if (types === "colorbomb+colorbomb") {
     // двойная радуга — самый эффектный комбо, чистим поле целиком
     addAll();
