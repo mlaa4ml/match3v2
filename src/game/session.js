@@ -11,7 +11,12 @@ import {
   hasAvailableMove,
   getComboEffectCells,
   buildShape,
+  describeShape,
   TILE_TYPES,
+  SPECIAL_COLOR_RULES,
+  DEFAULT_SPECIAL_COLOR_RULE,
+  SUPER_COMBO_RULES,
+  DEFAULT_SUPER_COMBO_RULE,
 } from "./board.js";
 
 const POINTS_PER_TILE = 10;
@@ -29,18 +34,56 @@ export class GameSession {
    * @param {string} [options.shapeId] - id формы поля из board.js:SHAPES (только
    *   для режима "custom"; "classic" всегда использует обычный квадрат 8x8,
    *   как и раньше).
+   * @param {number} [options.shapeSize] - сторона поля для форм, вписанных в
+   *   квадрат (ромб, крест, кольцо, треугольник, восьмиугольник, квадрат).
+   * @param {number} [options.shapeWidth] - ширина для формы "прямоугольник".
+   * @param {number} [options.shapeHeight] - высота для формы "прямоугольник".
+   * @param {string} [options.specialColorRule] - что делать с бонусной клеткой,
+   *   попавшей в цветовое совпадение: "activate" (сработает и исчезнет — как
+   *   было), "consume" (просто исчезнет) или "colorless" (бонус вообще без
+   *   цвета, в совпадения не попадает). См. SPECIAL_COLOR_RULES в board.js.
+   * @param {string} [options.superComboRule] - правило комбо двух бонусов:
+   *   "matrix" (таблица пар), "off" (без особых пар) или "wipe-all"
+   *   (супер-бонус: любое соединение бонусов стирает всё поле).
    */
-  constructor({ colorsCount = TILE_TYPES, movesLimit = MOVES_LIMIT, mode = "classic", shapeId = "square" } = {}) {
+  constructor({
+    colorsCount = TILE_TYPES,
+    movesLimit = MOVES_LIMIT,
+    mode = "classic",
+    shapeId = "square",
+    shapeSize,
+    shapeWidth,
+    shapeHeight,
+    specialColorRule = DEFAULT_SPECIAL_COLOR_RULE,
+    superComboRule = DEFAULT_SUPER_COMBO_RULE,
+  } = {}) {
     this.mode = mode === "custom" ? "custom" : "classic";
     this.colorsCount = clamp(Math.round(colorsCount), MIN_COLORS, TILE_TYPES);
     this.movesLimit = Math.max(MIN_MOVES, Math.round(movesLimit));
-    this.shape = buildShape(this.mode === "custom" ? shapeId : "square");
+    // Классика — всегда квадрат 8×8 и правила по умолчанию, как раньше.
+    this.shape =
+      this.mode === "custom"
+        ? buildShape(shapeId, { size: shapeSize, width: shapeWidth, height: shapeHeight })
+        : buildShape("square");
+    this.specialColorRule =
+      this.mode === "custom" && SPECIAL_COLOR_RULES.includes(specialColorRule)
+        ? specialColorRule
+        : DEFAULT_SPECIAL_COLOR_RULE;
+    this.superComboRule =
+      this.mode === "custom" && SUPER_COMBO_RULES.includes(superComboRule)
+        ? superComboRule
+        : DEFAULT_SUPER_COMBO_RULE;
     this.grid = createBoard(this.colorsCount, this.shape);
     this.score = 0;
     this.movesLeft = this.movesLimit;
     this.isOver = false;
     this.maxCombo = 0; // самая длинная цепочка волн за один ход за всю партию
     this.specialsActivated = 0; // сколько спецфишек сработало за всю партию (свап + цепные активации)
+  }
+
+  /** Человекочитаемое описание формы и её размера — для HUD. */
+  get shapeLabel() {
+    return describeShape(this.shape);
   }
 
   /**
@@ -60,9 +103,9 @@ export class GameSession {
     if (this.grid[a.row][a.col].special) forced.push(a);
     if (this.grid[b.row][b.col].special) forced.push(b);
 
-    // Игрок свапнул две спецфишки друг с другом — некоторые пары (например,
-    // bomb+lineV) дают увеличенный комбо-эффект вместо двух самостоятельных.
-    const comboCells = getComboEffectCells(this.grid, a, b);
+    // Игрок свапнул две спецфишки друг с другом — пара даёт увеличенный
+    // комбо-эффект (или, при правиле "wipe-all", стирает поле целиком).
+    const comboCells = getComboEffectCells(this.grid, a, b, this.superComboRule);
 
     // Радужная фишка (colorbomb), свапнутая с обычной цветной клеткой,
     // целится именно в цвет этой клетки — а не в "самый частый цвет",
@@ -80,6 +123,7 @@ export class GameSession {
       forcedPositions: [...forced, ...comboCells],
       originPositions: [a, b],
       colorBombTarget,
+      specialColorRule: this.specialColorRule,
     });
 
     if (!firstWave) {
@@ -153,7 +197,7 @@ export class GameSession {
       });
 
       combo += 1;
-      wave = resolveWave(this.grid, {});
+      wave = resolveWave(this.grid, { specialColorRule: this.specialColorRule });
     }
 
     return waves;
@@ -161,7 +205,7 @@ export class GameSession {
 }
 
 function cloneGrid(grid) {
-  return grid.map((row) => row.map((cell) => ({ ...cell })));
+  return grid.map((row) => row.map((cell) => (cell ? { ...cell } : null)));
 }
 
 function clamp(value, min, max) {

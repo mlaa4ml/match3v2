@@ -47,6 +47,34 @@
         Форма поля:
         <select id="custom-shape"></select>
       </label>
+      <label id="custom-size-label">
+        Размер (клеток в стороне):
+        <input type="number" id="custom-size" min="4" max="12" step="1" value="9" />
+      </label>
+      <label id="custom-width-label" hidden>
+        Ширина:
+        <input type="number" id="custom-width" min="4" max="12" step="1" value="6" />
+      </label>
+      <label id="custom-height-label" hidden>
+        Высота:
+        <input type="number" id="custom-height" min="4" max="12" step="1" value="9" />
+      </label>
+      <label>
+        Бонус в совпадении цвета:
+        <select id="custom-special-rule">
+          <option value="activate">Срабатывает перед исчезновением</option>
+          <option value="consume">Просто исчезает (как цвет)</option>
+          <option value="colorless">Без цвета — не исчезает от цвета</option>
+        </select>
+      </label>
+      <label>
+        Комбо двух бонусов:
+        <select id="custom-combo-rule">
+          <option value="matrix">Таблица комбо (у каждой пары свой эффект)</option>
+          <option value="off">Выключено (срабатывают по отдельности)</option>
+          <option value="wipe-all">Супер-бонус: стереть всё поле</option>
+        </select>
+      </label>
     </div>
     <div class="setup-row">
       <label>

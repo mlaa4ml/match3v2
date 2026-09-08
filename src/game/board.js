@@ -17,6 +17,33 @@
 export const BOARD_SIZE = 8;
 export const TILE_TYPES = 6;
 
+// Границы размера поля для режима "своя игра" (см. buildShape ниже).
+// Меньше 4 клеток в стороне играть нечем (нужно место под ряд из 3),
+// больше 12 уже не влезает на телефон.
+export const MIN_SHAPE_SIZE = 4;
+export const MAX_SHAPE_SIZE = 12;
+
+// Правила "бонус vs цвет" (issue #1, п.2) — что происходит со спецфишкой,
+// которая попала в обычное цветовое совпадение:
+//  'activate'  — (по умолчанию, поведение как раньше) она сначала срабатывает,
+//                и только потом исчезает вместе с совпадением;
+//  'consume'   — просто исчезает вместе с цветом, эффект НЕ срабатывает
+//                (сработать может только от свапа игроком или от чужого взрыва);
+//  'colorless' — спецфишка вообще теряет цвет (color === null), поэтому
+//                никогда не попадает в цветовые совпадения и спокойно ждёт,
+//                пока её активируют свапом или соседним взрывом.
+export const SPECIAL_COLOR_RULES = ["activate", "consume", "colorless"];
+export const DEFAULT_SPECIAL_COLOR_RULE = "activate";
+
+// Правила комбо при свапе ДВУХ спецфишек друг с другом (issue #1, п.3):
+//  'matrix'   — (по умолчанию) полная таблица комбо в getComboEffectCells:
+//               у каждой пары свой усиленный эффект, 🌈+🌈 чистит всё поле;
+//  'off'      — никаких особых пар: обе фишки просто срабатывают сами по себе;
+//  'wipe-all' — супер-бонус: ЛЮБОЕ соединение двух спецфишек стирает поле
+//               целиком, и оно заполняется новыми фишками.
+export const SUPER_COMBO_RULES = ["matrix", "off", "wipe-all"];
+export const DEFAULT_SUPER_COMBO_RULE = "matrix";
+
 // Виды спецфишек:
 //  'lineH' — рождается из горизонтального совпадения 4 — при активации чистит всю СТРОКУ
 //  'lineV' — рождается из вертикального совпадения 4 — чистит весь СТОЛБЕЦ
@@ -193,7 +220,10 @@ function mostFrequentColor(grid) {
   const counts = new Array(TILE_TYPES).fill(0);
   for (const row of grid) {
     for (const cell of row) {
-      if (cell) counts[cell.color] = (counts[cell.color] || 0) + 1;
+      // бесцветные бонусные клетки (правило 'colorless') в подсчёте не участвуют
+      if (cell && cell.color !== null && cell.color !== undefined) {
+        counts[cell.color] = (counts[cell.color] || 0) + 1;
+      }
     }
   }
   let best = 0;
@@ -212,10 +242,23 @@ function mostFrequentColor(grid) {
  * скромных самостоятельных эффектов получается один заметно больший.
  * Возвращает [] , если обе клетки — не спецфишки (значит, это не комбо-свап).
  */
-export function getComboEffectCells(grid, a, b) {
+export function getComboEffectCells(grid, a, b, superComboRule = DEFAULT_SUPER_COMBO_RULE) {
   const typeA = grid[a.row][a.col].special;
   const typeB = grid[b.row][b.col].special;
   if (!typeA || !typeB) return [];
+
+  const rule = SUPER_COMBO_RULES.includes(superComboRule) ? superComboRule : DEFAULT_SUPER_COMBO_RULE;
+  // 'off' — никакого особого комбо: каждая фишка просто сработает сама по себе
+  // (обычная цепная активация в resolveWave).
+  if (rule === "off") return [];
+  if (rule === "wipe-all") {
+    // супер-бонус: любое соединение двух бонусных клеток стирает поле целиком
+    const all = [];
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < grid[0].length; c++) all.push({ row: r, col: c });
+    }
+    return all;
+  }
 
   const height = grid.length;
   const width = grid[0].length;
@@ -243,22 +286,105 @@ export function getComboEffectCells(grid, a, b) {
     }
   };
 
+  const addRow = (row) => {
+    if (row < 0 || row >= height) return;
+    for (let c = 0; c < width; c++) cells.push({ row, col: c });
+  };
+
+  const addCol = (col) => {
+    if (col < 0 || col >= width) return;
+    for (let r = 0; r < height; r++) cells.push({ row: r, col });
+  };
+
+  const addAll = () => {
+    for (let r = 0; r < height; r++) {
+      for (let c = 0; c < width; c++) cells.push({ row: r, col: c });
+    }
+  };
+
+  /** Клетки указанного цвета (цель радужной фишки при комбо с ней). */
+  const cellsOfColor = (color) => {
+    const found = [];
+    for (let r = 0; r < height; r++) {
+      for (let c = 0; c < width; c++) {
+        if (grid[r][c] && grid[r][c].color === color) found.push({ row: r, col: c });
+      }
+    }
+    return found;
+  };
+
+  const otherOf = (type) => (typeA === type ? b : a);
   const types = [typeA, typeB].sort().join("+");
 
+  // Полная таблица комбо (issue #1, п.3). Раньше большинство пар давало []
+  // и срабатывала лишь одна фишка из двух — теперь у каждой пары свой
+  // усиленный эффект, а не "одно действие одной клетки".
   if (types === "bomb+bomb") {
     // вместо двух скромных 3x3 — один большой взрыв 5x5 через обе точки
     addBlock5(a);
     addBlock5(b);
   } else if (types === "bomb+lineH") {
     // "тройная строка": не одна чищенная строка, а сразу три подряд
-    addTripleRow((typeA === "lineH" ? a : b).row);
+    addTripleRow(otherOf("bomb").row);
   } else if (types === "bomb+lineV") {
     // аналогично — "тройной столбец"
-    addTripleCol((typeA === "lineV" ? a : b).col);
+    addTripleCol(otherOf("bomb").col);
+  } else if (types === "bomb+cross") {
+    // крест + бомба — тройная строка И тройной столбец через уголковую фишку
+    const cross = otherOf("bomb");
+    addTripleRow(cross.row);
+    addTripleCol(cross.col);
+  } else if (types === "lineH+lineH" || types === "lineH+lineV" || types === "lineV+lineV") {
+    // две линии — полноценный крест через ОБЕ клетки (а не одна линия)
+    addRow(a.row);
+    addCol(a.col);
+    addRow(b.row);
+    addCol(b.col);
+  } else if (types === "cross+lineH" || types === "cross+lineV") {
+    // уголок + линия — крест через обе клетки плюс "утолщение" у уголка
+    const cross = typeA === "cross" ? a : b;
+    addRow(a.row);
+    addCol(a.col);
+    addRow(b.row);
+    addCol(b.col);
+    addTripleRow(cross.row);
+  } else if (types === "cross+cross") {
+    // два уголка — не сплошные линии через всё поле (это фактически стирало
+    // бы почти весь board), а локальное утолщение креста: прямоугольник,
+    // накрывающий обе клетки с запасом в 1 клетку по каждой стороне.
+    const minRow = Math.min(a.row, b.row) - 1;
+    const maxRow = Math.max(a.row, b.row) + 1;
+    const minCol = Math.min(a.col, b.col) - 1;
+    const maxCol = Math.max(a.col, b.col) + 1;
+    for (let r = minRow; r <= maxRow; r++) {
+      if (r < 0 || r >= height) continue;
+      for (let c = minCol; c <= maxCol; c++) {
+        if (c < 0 || c >= width) continue;
+        cells.push({ row: r, col: c });
+      }
+    }
   } else if (types === "colorbomb+colorbomb") {
     // двойная радуга — самый эффектный комбо, чистим поле целиком
-    for (let r = 0; r < height; r++) {
-      for (let c = 0; c < width; c++) cells.push({ row: r, col: c });
+    addAll();
+  } else if (typeA === "colorbomb" || typeB === "colorbomb") {
+    // радуга + любая другая спецфишка: все клетки цвета партнёра как бы
+    // становятся такой же спецфишкой и срабатывают разом.
+    const partner = typeA === "colorbomb" ? b : a;
+    const partnerType = typeA === "colorbomb" ? typeB : typeA;
+    const partnerCell = grid[partner.row][partner.col];
+    const targetColor = partnerCell.color === null || partnerCell.color === undefined
+      ? mostFrequentColor(grid)
+      : partnerCell.color;
+    const targets = cellsOfColor(targetColor);
+    cells.push(...targets, partner);
+    for (const t of targets) {
+      if (partnerType === "lineH") addRow(t.row);
+      else if (partnerType === "lineV") addCol(t.col);
+      else if (partnerType === "bomb") addBlock5(t);
+      else if (partnerType === "cross") {
+        addRow(t.row);
+        addCol(t.col);
+      }
     }
   }
 
@@ -279,11 +405,27 @@ export function getComboEffectCells(grid, a, b) {
  *   игрок свапнул colorbomb именно с этой клеткой, при её активации нужно
  *   целиться в этот цвет, а не в "самый частый на поле" (запасной вариант
  *   для цепной активации без прямого свапа с цветной клеткой).
+ * @param {string} [options.specialColorRule] — одно из SPECIAL_COLOR_RULES,
+ *   см. описание правил вверху файла (issue #1, п.2).
  */
-export function resolveWave(grid, { forcedPositions = [], originPositions = [], colorBombTarget = null } = {}) {
+export function resolveWave(
+  grid,
+  {
+    forcedPositions = [],
+    originPositions = [],
+    colorBombTarget = null,
+    specialColorRule = DEFAULT_SPECIAL_COLOR_RULE,
+  } = {}
+) {
   const clearSet = new Map(); // "r,c" -> {row,col}
   const spawns = [];
   const spawnKeys = new Set();
+  const rule = SPECIAL_COLOR_RULES.includes(specialColorRule)
+    ? specialColorRule
+    : DEFAULT_SPECIAL_COLOR_RULE;
+  // При правиле 'colorless' рождённая спецфишка теряет цвет — так она больше
+  // никогда не попадёт в цветовое совпадение и будет ждать активации.
+  const spawnColor = (row, col) => (rule === "colorless" ? null : grid[row][col].color);
 
   const addClear = (row, col) => clearSet.set(`${row},${col}`, { row, col });
 
@@ -321,7 +463,7 @@ export function resolveWave(grid, { forcedPositions = [], originPositions = [], 
         row: spawnCell.row,
         col: spawnCell.col,
         special: "cross",
-        color: grid[spawnCell.row][spawnCell.col].color,
+        color: spawnColor(spawnCell.row, spawnCell.col),
       });
       spawnKeys.add(`${spawnCell.row},${spawnCell.col}`);
     }
@@ -341,27 +483,40 @@ export function resolveWave(grid, { forcedPositions = [], originPositions = [], 
         row: spawnCell.row,
         col: spawnCell.col,
         special,
-        color: grid[spawnCell.row][spawnCell.col].color,
+        color: spawnColor(spawnCell.row, spawnCell.col),
       });
       spawnKeys.add(`${spawnCell.row},${spawnCell.col}`);
     }
   }
 
-  for (const pos of forcedPositions) addClear(pos.row, pos.col);
+  // Клетки, чей бонус имеет право сработать. При правиле 'activate' (как
+  // было раньше) — вообще любая попавшая под очистку клетка. При правиле
+  // 'consume' бонус, который просто попал в цветовое совпадение, молча
+  // исчезает, и активироваться могут только те, кого игрок свапнул сам
+  // (forcedPositions) или кого задел чужой взрыв (добавляются ниже).
+  const allowActivation = new Set();
+  for (const pos of forcedPositions) {
+    addClear(pos.row, pos.col);
+    allowActivation.add(`${pos.row},${pos.col}`);
+  }
 
   // цепная активация: любая спецфишка, попавшая под очистку, добавляет свою зону
-  const triggered = new Set();
+  const seen = new Set();
+  const activated = new Set();
   let activatedSpecialsCount = 0;
   let frontier = [...clearSet.keys()];
   while (frontier.length > 0) {
     const key = frontier.pop();
-    if (triggered.has(key)) continue;
-    triggered.add(key);
+    if (seen.has(key) && !(allowActivation.has(key) && !activated.has(key))) continue;
+    seen.add(key);
     if (spawnKeys.has(key)) continue; // спавнящаяся клетка не может сама себя чистить
+    if (activated.has(key)) continue;
+    if (rule === "consume" && !allowActivation.has(key)) continue;
 
     const [r, c] = key.split(",").map(Number);
     const cell = grid[r][c];
     if (cell && cell.special) {
+      activated.add(key);
       activatedSpecialsCount += 1;
       const context =
         colorBombTarget && colorBombTarget.row === r && colorBombTarget.col === c
@@ -369,10 +524,13 @@ export function resolveWave(grid, { forcedPositions = [], originPositions = [], 
           : undefined;
       for (const affected of getSpecialEffectCells(grid, r, c, context)) {
         const aKey = `${affected.row},${affected.col}`;
-        if (!clearSet.has(aKey)) {
-          addClear(affected.row, affected.col);
-          frontier.push(aKey);
-        }
+        const isNew = !clearSet.has(aKey);
+        if (isNew) addClear(affected.row, affected.col);
+        // клетку задел взрыв, а не просто цвет — её бонус вправе сработать
+        // даже при правиле 'consume'
+        const newlyAllowed = !allowActivation.has(aKey);
+        allowActivation.add(aKey);
+        if (isNew || newlyAllowed) frontier.push(aKey);
       }
     }
   }
@@ -527,7 +685,8 @@ function crossShape(size) {
 }
 
 function ringShape(size) {
-  const t = 2; // толщина рамки
+  // толщина рамки: на маленьких полях 2 клетки съели бы всё поле целиком
+  const t = size >= 7 ? 2 : 1;
   const mask = Array.from({ length: size }, (_, r) =>
     Array.from({ length: size }, (_, c) => !(r >= t && r < size - t && c >= t && c < size - t))
   );
@@ -559,23 +718,61 @@ function hexShape(size) {
   return { width: size, height: size, mask };
 }
 
-// Реестр форм: id -> { name, build() }. main.js использует его, чтобы
-// построить выпадающий список — новая форма добавляется только тут,
-// больше нигде трогать не нужно.
+// Реестр форм: id -> { name, build(size|{width,height}), sizing }.
+// sizing описывает, что игрок может настраивать для этой формы:
+//  'wh'   — прямоугольник: отдельно ширина и высота;
+//  'size' — форма вписана в квадрат size×size, настраивается одна сторона.
+// main.js использует это, чтобы показать нужные поля ввода — новая форма
+// добавляется только тут, больше нигде трогать не нужно.
 export const SHAPES = {
-  square: { name: "Квадрат 8×8", build: () => rectShape(BOARD_SIZE, BOARD_SIZE) },
-  rect_narrow: { name: "Прямоугольник 6×9", build: () => rectShape(6, 9) },
-  rect_wide: { name: "Прямоугольник 9×6", build: () => rectShape(9, 6) },
-  diamond: { name: "Ромб", build: () => diamondShape(9) },
-  cross: { name: "Крест", build: () => crossShape(9) },
-  ring: { name: "Кольцо", build: () => ringShape(9) },
-  triangle: { name: "Треугольник", build: () => triangleShape(9) },
-  hex: { name: "Восьмиугольник", build: () => hexShape(9) },
+  square: {
+    name: "Квадрат",
+    sizing: "size",
+    defaultSize: BOARD_SIZE,
+    build: (size) => rectShape(size, size),
+  },
+  rect: {
+    name: "Прямоугольник",
+    sizing: "wh",
+    defaultWidth: 6,
+    defaultHeight: 9,
+    build: ({ width, height }) => rectShape(width, height),
+  },
+  diamond: { name: "Ромб", sizing: "size", defaultSize: 9, build: (size) => diamondShape(size) },
+  cross: { name: "Крест", sizing: "size", defaultSize: 9, build: (size) => crossShape(size) },
+  ring: { name: "Кольцо", sizing: "size", defaultSize: 9, build: (size) => ringShape(size) },
+  triangle: { name: "Треугольник", sizing: "size", defaultSize: 9, build: (size) => triangleShape(size) },
+  hex: { name: "Восьмиугольник", sizing: "size", defaultSize: 9, build: (size) => hexShape(size) },
 };
 
-/** Собирает форму по id из SHAPES; неизвестный/отсутствующий id → "square". */
-export function buildShape(shapeId) {
+export function clampShapeSize(value, fallback) {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(MAX_SHAPE_SIZE, Math.max(MIN_SHAPE_SIZE, n));
+}
+
+/**
+ * Собирает форму по id из SHAPES; неизвестный/отсутствующий id → "square".
+ * @param {Object} [options] — размеры, выбранные игроком:
+ *   { size } для форм с sizing==='size' и { width, height } для 'wh'.
+ *   Всё, что не передано или выходит за MIN/MAX_SHAPE_SIZE, приводится
+ *   к допустимым значениям — форма всегда получается играбельной.
+ */
+export function buildShape(shapeId, options = {}) {
   const entry = SHAPES[shapeId] ? shapeId : "square";
-  const { name, build } = SHAPES[entry];
-  return { id: entry, name, ...build() };
+  const def = SHAPES[entry];
+
+  if (def.sizing === "wh") {
+    const width = clampShapeSize(options.width, def.defaultWidth);
+    const height = clampShapeSize(options.height, def.defaultHeight);
+    return { id: entry, name: def.name, sizing: def.sizing, ...def.build({ width, height }) };
+  }
+
+  const size = clampShapeSize(options.size, def.defaultSize);
+  return { id: entry, name: def.name, sizing: def.sizing, ...def.build(size) };
+}
+
+/** Человекочитаемое описание формы вместе с её размером — для HUD. */
+export function describeShape(shape) {
+  return `${shape.name} ${shape.width}×${shape.height}`;
 }

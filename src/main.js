@@ -1,7 +1,7 @@
 import { GameSession } from "./game/session.js";
 import { BoardRenderer, setTileTheme } from "./render.js";
 import { statsProvider } from "./stats/index.js";
-import { findAvailableMove, SHAPES } from "./game/board.js";
+import { findAvailableMove, SHAPES, clampShapeSize } from "./game/board.js";
 
 const boardEl = document.getElementById("board");
 const scoreEl = document.getElementById("score");
@@ -15,6 +15,14 @@ const customOptionsEl = document.getElementById("custom-options");
 const customColorsEl = document.getElementById("custom-colors");
 const customMovesEl = document.getElementById("custom-moves");
 const customShapeEl = document.getElementById("custom-shape");
+const customSizeEl = document.getElementById("custom-size");
+const customSizeLabelEl = document.getElementById("custom-size-label");
+const customWidthEl = document.getElementById("custom-width");
+const customWidthLabelEl = document.getElementById("custom-width-label");
+const customHeightEl = document.getElementById("custom-height");
+const customHeightLabelEl = document.getElementById("custom-height-label");
+const customSpecialRuleEl = document.getElementById("custom-special-rule");
+const customComboRuleEl = document.getElementById("custom-combo-rule");
 const themeRadios = document.querySelectorAll('input[name="theme"]');
 const colorSchemeRadios = document.querySelectorAll('input[name="color-scheme"]');
 
@@ -55,6 +63,11 @@ function saveSettings(settings) {
       colorsCount: settings.colorsCount ?? existing.colorsCount,
       movesLimit: settings.movesLimit ?? existing.movesLimit,
       shapeId: settings.shapeId ?? existing.shapeId,
+      shapeSize: settings.shapeSize ?? existing.shapeSize,
+      shapeWidth: settings.shapeWidth ?? existing.shapeWidth,
+      shapeHeight: settings.shapeHeight ?? existing.shapeHeight,
+      specialColorRule: settings.specialColorRule ?? existing.specialColorRule,
+      superComboRule: settings.superComboRule ?? existing.superComboRule,
     };
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(merged));
   } catch {
@@ -157,6 +170,19 @@ for (const radio of colorSchemeRadios) {
 }
 applySavedColorScheme();
 
+/** Показывает поля размера, подходящие выбранной форме: прямоугольнику —
+ * ширина+высота, всем остальным формам — одна сторона квадрата. */
+function updateShapeSizeVisibility() {
+  const def = SHAPES[customShapeEl.value] || SHAPES.square;
+  const isRect = def.sizing === "wh";
+  customSizeLabelEl.hidden = isRect;
+  customWidthLabelEl.hidden = !isRect;
+  customHeightLabelEl.hidden = !isRect;
+}
+
+customShapeEl.addEventListener("change", updateShapeSizeVisibility);
+updateShapeSizeVisibility();
+
 function applySavedSettings() {
   const saved = loadSavedSettings();
   if (!saved) return;
@@ -178,7 +204,21 @@ function applySavedSettings() {
   if (saved.shapeId && SHAPES[saved.shapeId]) {
     customShapeEl.value = saved.shapeId;
   }
+  if (Number.isFinite(saved.shapeSize)) customSizeEl.value = String(clampShapeSize(saved.shapeSize, 9));
+  if (Number.isFinite(saved.shapeWidth)) customWidthEl.value = String(clampShapeSize(saved.shapeWidth, 6));
+  if (Number.isFinite(saved.shapeHeight)) customHeightEl.value = String(clampShapeSize(saved.shapeHeight, 9));
+  if (saved.specialColorRule) {
+    if ([...customSpecialRuleEl.options].some((o) => o.value === saved.specialColorRule)) {
+      customSpecialRuleEl.value = saved.specialColorRule;
+    }
+  }
+  if (saved.superComboRule) {
+    if ([...customComboRuleEl.options].some((o) => o.value === saved.superComboRule)) {
+      customComboRuleEl.value = saved.superComboRule;
+    }
+  }
 
+  updateShapeSizeVisibility();
   updateCustomVisibility();
 }
 
@@ -194,6 +234,11 @@ function currentSettings() {
       colorsCount: Number.isFinite(colorsCount) ? colorsCount : 3,
       movesLimit: Number.isFinite(movesLimit) ? movesLimit : 3,
       shapeId: customShapeEl.value || "square",
+      shapeSize: clampShapeSize(customSizeEl.value, 9),
+      shapeWidth: clampShapeSize(customWidthEl.value, 6),
+      shapeHeight: clampShapeSize(customHeightEl.value, 9),
+      specialColorRule: customSpecialRuleEl.value,
+      superComboRule: customComboRuleEl.value,
     };
   }
 
@@ -230,7 +275,7 @@ function startNewGame() {
 function updateModeInfo(mode) {
   modeInfoEl.textContent =
     mode === "custom"
-      ? `Своя игра: ${session.shape.name}, ${session.colorsCount} цвета(ов), ${session.movesLimit} ходов`
+      ? `Своя игра: ${session.shapeLabel}, ${session.colorsCount} цвета(ов), ${session.movesLimit} ходов`
       : "Обычная игра";
 }
 

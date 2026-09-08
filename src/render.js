@@ -34,6 +34,17 @@ export function setTileTheme(theme) {
 }
 
 function shapeMarkup(colorIndex) {
+  // colorIndex === null/undefined — "бесцветная" бонусная клетка (правило
+  // 'colorless' из board.js): у неё вообще нет цвета, поэтому она не попадает
+  // в цветовые совпадения. Рисуем нейтральный серебристый восьмиугольник,
+  // чтобы это было видно сразу.
+  if (colorIndex === null || colorIndex === undefined) {
+    return `<svg class="tile-shape" viewBox="0 0 100 100">
+      <g fill="#8d939b" stroke="#e8eaed" stroke-width="3">
+        <polygon points="30,6 70,6 94,30 94,70 70,94 30,94 6,70 6,30"/>
+      </g>
+    </svg>`;
+  }
   const shape = TILE_SHAPES[colorIndex] ?? TILE_SHAPES[0];
   const color = TILE_COLORS[colorIndex] ?? TILE_COLORS[0];
   // Общий для colorIndex id — определение градиента одинаковое для всех
