@@ -349,11 +349,25 @@ export function getComboEffectCells(grid, a, b, superComboRule = DEFAULT_SUPER_C
     addCol(b.col);
     addTripleRow(cross.row);
   } else if (types === "cross+cross") {
-    // два уголка — по три строки и три столбца через каждую клетку
-    addTripleRow(a.row);
-    addTripleCol(a.col);
-    addTripleRow(b.row);
-    addTripleCol(b.col);
+    // два уголка — не сплошные линии через всё поле (это фактически стирало
+    // бы почти весь board), а локальное утолщение креста: прямоугольник,
+    // накрывающий обе клетки с запасом в 1 клетку по каждой стороне.
+    const minRow = Math.min(a.row, b.row) - 1;
+    const maxRow = Math.max(a.row, b.row) + 1;
+    const minCol = Math.min(a.col, b.col) - 1;
+    const maxCol = Math.max(a.col, b.col) + 1;
+    for (let r = minRow; r <= maxRow; r++) {
+      if (r < 0 || r >= height) continue;
+      for (let c = minCol; c <= maxCol; c++) {
+        if (c < 0 || c >= width) continue;
+        cells.push({ row: r, col: c });
+      }
+    }
+//     // два уголка — по три строки и три столбца через каждую клетку
+//     addTripleRow(a.row);
+//     addTripleCol(a.col);
+//     addTripleRow(b.row);
+//     addTripleCol(b.col);
   } else if (types === "colorbomb+colorbomb") {
     // двойная радуга — самый эффектный комбо, чистим поле целиком
     addAll();
